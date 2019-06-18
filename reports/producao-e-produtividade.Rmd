@@ -8,7 +8,7 @@ library(tidyverse)
 library(broom)
 library(modelr)
 source(here::here("code/lib.R"))
-theme_set(theme_report())
+theme_set(theme_bw())
 
 knitr::opts_chunk$set(tidy = FALSE,
                       fig.width = 6,
@@ -28,9 +28,9 @@ A CAPES é um órgão do MEC que tem a atribuição de acompanhar a pós-gradua�
 Usaremos dados da penúltima avaliação da CAPES: 
 
 ```{r}
-cacc = read_projectdata()
+cacc_tudo = read_projectdata()
 
-glimpse(cacc)
+glimpse(cacc_tudo)
 ```
 
 ### Produção e produtividade de artigos
@@ -38,21 +38,33 @@ glimpse(cacc)
 Uma das maneiras de avaliar a produção dos docentes que a CAPES utiliza é quantificando a produção de artigos pelos docentes. Os artigos são categorizados em extratos ordenados (A1 é o mais alto), e separados entre artigos em conferências e periódicos. Usaremos para esse lab a produção em periódicos avaliados com A1, A2 e B1. 
 
 ```{r}
-cacc = cacc %>% 
-  mutate(producao = (periodicos_A1 + periodicos_A2 + periodicos_B1), 
-         produtividade = producao / `Docentes permanentes`, 
-         mestrados = Dissertacoes, 
-         doutorados = Teses,
-         mestrados_pprof = mestrados / `Docentes permanentes`, 
-         doutorados_pprof = doutorados / `Docentes permanentes`)
+cacc = cacc_tudo %>%
+  transmute(
+    docentes = `Docentes permanentes`,
+    producao = (periodicos_A1 + periodicos_A2 + periodicos_B1),
+    produtividade = producao / docentes,
+    mestrados = Dissertacoes,
+    doutorados = Teses,
+    tem_doutorado = tolower(`Tem doutorado`) == "sim",
+    mestrados_pprof = mestrados / docentes,
+    doutorados_pprof = doutorados / docentes
+  )
+
+cacc_md = cacc %>% 
+  filter(tem_doutorado)
 ```
 
 
 ### EDA
 
 ```{r}
+skimr::skim(cacc)
+```
+
+
+```{r}
 cacc %>% 
-  ggplot(aes(x = `Docentes permanentes`)) + 
+  ggplot(aes(x = docentes)) + 
   geom_histogram(bins = 15, fill = paleta[1])
 
 cacc %>% 
@@ -70,14 +82,14 @@ Se quisermos modelar o efeito do tamanho do programa em termos de docentes (perm
 
 ```{r}
 cacc %>% 
-  ggplot(aes(x = `Docentes permanentes`, y = producao)) + 
+  ggplot(aes(x = docentes, y = producao)) + 
   geom_point()
 ```
 
 Parece que existe uma relação. Vamos criar um modelo então:
 
 ```{r}
-modelo1 = lm(producao ~ `Docentes permanentes`, data = cacc)
+modelo1 = lm(producao ~ docentes, data = cacc)
 
 tidy(modelo1, conf.int = TRUE, conf.level = 0.95)
 glance(modelo1)
@@ -90,7 +102,7 @@ cacc_augmented = cacc %>%
   add_predictions(modelo1) 
 
 cacc_augmented %>% 
-  ggplot(aes(x = `Docentes permanentes`)) + 
+  ggplot(aes(x = docentes)) + 
   geom_line(aes(y = pred), colour = "brown") + 
   geom_point(aes(y = producao)) + 
   labs(y = "Produção do programa")
@@ -120,10 +132,18 @@ Dito isso, o que significa a relação que você encontrou na prática para ente
 
 ## Mais fatores
 
+```{r}
+modelo2 = lm(producao ~ docentes + mestrados_pprof + doutorados_pprof + tem_doutorado, 
+             data = cacc_md)
+
+tidy(modelo2, conf.int = TRUE, conf.level = 0.95)
+glance(modelo2)
+```
+
 E se considerarmos também o número de alunos?
 
 ```{r}
-modelo2 = lm(producao ~ `Docentes permanentes` + mestrados + doutorados, data = cacc)
+modelo2 = lm(producao ~ docentes + mestrados + doutorados, data = cacc)
 
 tidy(modelo2, conf.int = TRUE, conf.level = 0.95)
 glance(modelo2)
@@ -134,7 +154,7 @@ Visualizar o modelo com muitas variáveis independentes fica mais difícil
 ```{r}
 para_plotar_modelo = cacc %>% 
   data_grid(producao = seq_range(producao, 10), # Crie um vetor de 10 valores no range
-            `Docentes permanentes` = seq_range(`Docentes permanentes`, 4),  
+            docentes = seq_range(docentes, 4),  
             # mestrados = seq_range(mestrados, 3),
             mestrados = median(mestrados),
             doutorados = seq_range(doutorados, 3)) %>% 
@@ -146,9 +166,8 @@ glimpse(para_plotar_modelo)
 
 ```{r}
 para_plotar_modelo %>% 
-  ggplot(aes(x = `Docentes permanentes`, y = pred)) + 
+  ggplot(aes(x = docentes, y = pred)) + 
   geom_line(aes(group = doutorados, colour = doutorados)) + 
-  # facet_grid(. ~ as.factor(mestrados)) + 
   geom_point(data = cacc, aes(y = producao, colour = doutorados))
 ```
 
