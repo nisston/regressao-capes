@@ -1,6 +1,10 @@
 ---
-title: "Regressão linear na prática"
-output: html_notebook
+title: "Regressão linear na prática - Lab 5.1 - FPCC2"
+author: "Nisston Moraes Tavares de Melo - 0120015808-15D"
+date: "25 de junho de 2020"
+output:
+  html_document:
+    df_print: paged
 ---
 
 ```{r warning=FALSE, echo=FALSE}
@@ -43,6 +47,8 @@ cacc = cacc_tudo %>%
     docentes = `Docentes permanentes`,
     producao = (periodicos_A1 + periodicos_A2 + periodicos_B1),
     produtividade = producao / docentes,
+    docentes_visitantes = `Docentes visitantes`,
+    nivel = `Nível`,
     mestrados = Dissertacoes,
     doutorados = Teses,
     tem_doutorado = tolower(`Tem doutorado`) == "sim",
@@ -185,3 +191,42 @@ Considerando agora esses três fatores, o que podemos dizer sobre como cada um d
 Diferente de medirmos produção (total produzido), é medirmos produtividade (produzido / utilizado). Abaixo focaremos nessa análise. Para isso crie um modelo que investiga como um conjunto de fatores que você julga que são relevantes se relacionam com a produtividade dos programas. Crie um modelo que avalie como _pelo menos 3 fatores_ se relacionam com a produtividade de um programa. Pode reutilizar fatores que já definimos e analizamos para produção. Mas cuidado para não incluir fatores que sejam função linear de outros já incluídos (ex: incluir A, B e um tercero C=A+B)
 
 Produza abaixo o modelo e um texto que comente (i) o modelo, tal como os que fizemos antes, e (ii) as implicações - o que aprendemos sobre como funcionam programas de pós no brasil?.
+
+```{r}
+modelo5 = lm(produtividade ~ docentes_visitantes + tem_doutorado + nivel, data = cacc)
+
+tidy(modelo5, conf.int = TRUE, conf.level = 0.95)
+```
+
+```{r}
+glance(modelo5)
+```
+
+# Conclusão
+
+## (i) o modelo, tal como os que fizemos antes.
+
+Utilizamos agora a metodologia de Regressão múltipla, onde vamos aplicar o modelo com as variáveis de docentes_visistantes, tem_doutorado e nivel, em seguida fazer uma análise para verificar se tem uma associação dessas variáveis com a produtividade.
+
+Os valores obtidos da regressão mostram que o modelo com as três variáveis (docentes_visistantes, tem_doutorado e nivel) preditores apresenta o seguinte modelo:
+
+produtividade = - 0,14.docentes_visitantes + 0,81.tem_doutorado + 0,59.nivel - 0,28
+
+O modelo pode explicar 56,54% da variância da variável de resposta. Também é possível verificar que se o aumento de 1 (uma) unidade de docentes visistantes e nivel produz uma mudança em produtividade de, respectivamente, -0,14 e 0,59. No caso do programa de pós graduação ter doutorado (tem_doutorado = 1), será produzida uma mudança de 0,81 na produtividade. Os coeficientes angular da reta.
+
+
+# (ii) as implicações - o que aprendemos sobre como funcionam programas de pós no brasil?.
+
+Sendo assim, podemos concluir que com os resultados apresentados, é possível verificar que:
+
+* A adição de docentes visitantes pode exercer nenhuma influência na produtividade, ou se ela existir pode ser relevante negativa ou razoável positiva (b1 = [-0,52;0,25], IC com 95%).
+
+* Já o programa de pós-graduação em Ciência da Computação dispor de doutorado, exerce uma influência na produtividade que pode ser razoável positiva ou muito forte positiva (b2 = [0,22;1,40], IC com 95%).
+
+* De igual modo, é possível inferir que as notas atribuídas aos programas de pós-graduação possuem uma relação média ou forte com a produtividade dos mesmos (b3 = [0,34;0,85], IC com 95%).
+
+
+
+
+
+
